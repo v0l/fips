@@ -21,3 +21,5 @@ reference/
 
 dist/
 *.ipk
+
+sim-results/

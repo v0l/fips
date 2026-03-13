@@ -30,6 +30,7 @@ use crate::transport::{
 };
 use crate::transport::udp::UdpTransport;
 use crate::transport::tcp::TcpTransport;
+use crate::transport::tor::TorTransport;
 #[cfg(target_os = "linux")]
 use crate::transport::ethernet::EthernetTransport;
 use crate::tree::TreeState;
@@ -702,6 +703,21 @@ impl Node {
             let transport_id = self.allocate_transport_id();
             let tcp = TcpTransport::new(transport_id, name, tcp_config, packet_tx.clone());
             transports.push(TransportHandle::Tcp(tcp));
+        }
+
+        // Create Tor transport instances
+        let tor_instances: Vec<_> = self
+            .config
+            .transports
+            .tor
+            .iter()
+            .map(|(name, config)| (name.map(|s| s.to_string()), config.clone()))
+            .collect();
+
+        for (name, tor_config) in tor_instances {
+            let transport_id = self.allocate_transport_id();
+            let tor = TorTransport::new(transport_id, name, tor_config, packet_tx.clone());
+            transports.push(TransportHandle::Tor(tor));
         }
 
         transports

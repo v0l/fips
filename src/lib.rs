@@ -26,7 +26,7 @@ pub use identity::{
 };
 
 // Re-export config types
-pub use config::{Config, ConfigError, IdentityConfig, UdpConfig};
+pub use config::{Config, ConfigError, IdentityConfig, TorConfig, UdpConfig};
 pub use upper::config::{DnsConfig, TunConfig};
 
 // Re-export tree types

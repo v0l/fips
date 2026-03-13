@@ -293,10 +293,6 @@ pub struct TcpConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub send_buf_size: Option<usize>,
 
-    /// SOCKS5 proxy for outbound connections (placeholder; not yet implemented).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub socks5_proxy: Option<String>,
-
     /// Maximum simultaneous inbound connections. Defaults to 256.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_inbound_connections: Option<usize>,
@@ -340,6 +336,67 @@ impl TcpConfig {
 }
 
 // ============================================================================
+// Tor Transport Configuration
+// ============================================================================
+
+/// Default Tor SOCKS5 proxy address.
+const DEFAULT_TOR_SOCKS5_ADDR: &str = "127.0.0.1:9050";
+
+/// Default Tor connect timeout in milliseconds (120s — Tor circuit
+/// establishment can take 30-60s on first connect, plus SOCKS5 handshake).
+const DEFAULT_TOR_CONNECT_TIMEOUT_MS: u64 = 120_000;
+
+/// Default Tor MTU (same as TCP).
+const DEFAULT_TOR_MTU: u16 = 1400;
+
+/// Tor transport instance configuration.
+///
+/// Phase 1 supports outbound SOCKS5 only. The `mode` field is reserved
+/// for future control_port and embedded (arti) modes.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TorConfig {
+    /// Tor access mode. Currently only "socks5" is supported.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mode: Option<String>,
+
+    /// SOCKS5 proxy address (host:port). Defaults to "127.0.0.1:9050".
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub socks5_addr: Option<String>,
+
+    /// Outbound connect timeout in milliseconds. Defaults to 120000 (120s).
+    /// Tor circuit establishment can take 30-60s, so this must be generous.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub connect_timeout_ms: Option<u64>,
+
+    /// Default MTU for Tor connections. Defaults to 1400.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mtu: Option<u16>,
+}
+
+impl TorConfig {
+    /// Get the access mode. Default: "socks5".
+    pub fn mode(&self) -> &str {
+        self.mode.as_deref().unwrap_or("socks5")
+    }
+
+    /// Get the SOCKS5 proxy address. Default: "127.0.0.1:9050".
+    pub fn socks5_addr(&self) -> &str {
+        self.socks5_addr.as_deref().unwrap_or(DEFAULT_TOR_SOCKS5_ADDR)
+    }
+
+    /// Get the connect timeout in milliseconds. Default: 120000.
+    pub fn connect_timeout_ms(&self) -> u64 {
+        self.connect_timeout_ms.unwrap_or(DEFAULT_TOR_CONNECT_TIMEOUT_MS)
+    }
+
+    /// Get the default MTU. Default: 1400.
+    pub fn mtu(&self) -> u16 {
+        self.mtu.unwrap_or(DEFAULT_TOR_MTU)
+    }
+}
+
+// ============================================================================
 // TransportsConfig
 // ============================================================================
 
@@ -360,6 +417,10 @@ pub struct TransportsConfig {
     /// TCP transport instances.
     #[serde(default, skip_serializing_if = "is_transport_empty")]
     pub tcp: TransportInstances<TcpConfig>,
+
+    /// Tor transport instances.
+    #[serde(default, skip_serializing_if = "is_transport_empty")]
+    pub tor: TransportInstances<TorConfig>,
 }
 
 /// Helper for skip_serializing_if on TransportInstances.
@@ -370,7 +431,7 @@ fn is_transport_empty<T>(instances: &TransportInstances<T>) -> bool {
 impl TransportsConfig {
     /// Check if any transports are configured.
     pub fn is_empty(&self) -> bool {
-        self.udp.is_empty() && self.ethernet.is_empty() && self.tcp.is_empty()
+        self.udp.is_empty() && self.ethernet.is_empty() && self.tcp.is_empty() && self.tor.is_empty()
     }
 
     /// Merge another TransportsConfig into this one.
@@ -385,6 +446,9 @@ impl TransportsConfig {
         }
         if !other.tcp.is_empty() {
             self.tcp = other.tcp;
+        }
+        if !other.tor.is_empty() {
+            self.tor = other.tor;
         }
     }
 }

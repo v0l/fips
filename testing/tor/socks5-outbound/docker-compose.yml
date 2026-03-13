@@ -1,0 +1,66 @@
+# Tor transport integration test — socks5-outbound
+#
+# Topology:
+#   [fips-a] --tor/socks5--> vps-chi (217.77.8.91:443) <--tor/socks5-- [fips-b]
+#
+# Both FIPS nodes connect outbound through a local Tor daemon's SOCKS5
+# proxy to vps-chi's TCP listener. vps-chi routes between them.
+# Ping between fips-a and fips-b validates the full Tor transport path.
+
+networks:
+  tor-test:
+    driver: bridge
+
+services:
+  tor-daemon:
+    image: osminogin/tor-simple:latest
+    container_name: tor-daemon
+    restart: "no"
+    volumes:
+      - ../common/torrc:/etc/tor/torrc:ro
+    networks:
+      tor-test:
+
+  fips-a:
+    build:
+      context: ../common
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=0
+    restart: "no"
+    container_name: fips-tor-a
+    hostname: fips-tor-a
+    depends_on:
+      - tor-daemon
+    volumes:
+      - ../common/resolv.conf:/etc/resolv.conf:ro
+      - ./configs/node-a.yaml:/etc/fips/fips.yaml:ro
+    environment:
+      - RUST_LOG=info,fips::transport::tor=debug
+    networks:
+      tor-test:
+
+  fips-b:
+    build:
+      context: ../common
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=0
+    restart: "no"
+    container_name: fips-tor-b
+    hostname: fips-tor-b
+    depends_on:
+      - tor-daemon
+    volumes:
+      - ../common/resolv.conf:/etc/resolv.conf:ro
+      - ./configs/node-b.yaml:/etc/fips/fips.yaml:ro
+    environment:
+      - RUST_LOG=info,fips::transport::tor=debug
+    networks:
+      tor-test:

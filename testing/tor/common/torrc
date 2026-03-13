@@ -1,0 +1,11 @@
+# Minimal Tor configuration for FIPS integration testing.
+# Provides a SOCKS5 proxy on port 9050 accessible from the Docker network.
+
+SocksPort 0.0.0.0:9050
+
+# Reduce startup time by not waiting for full circuit build
+# (we're testing SOCKS5 connectivity, not anonymity properties)
+__DisablePredictedCircuits 1
+
+# Logging
+Log notice stderr
